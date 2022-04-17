@@ -7,8 +7,21 @@ const path = require('path');
 const dataDir = '/content/drive/MyDrive/ia-projects/writer-bot/data';
 const outputDir = '/content/drive/MyDrive/ia-projects/writer-bot/output';
 const modelsDir = '/content/drive/MyDrive/ia-projects/writer-bot/models';
+
+if(!fs.existsSync(dataDir)){
+    fs.mkdirSync(dataDir,{
+        recursive:true
+    });
+}
+
 if(!fs.existsSync(outputDir)){
     fs.mkdirSync(outputDir,{
+        recursive:true
+    });
+}
+
+if(!fs.existsSync(modelsDir)){
+    fs.mkdirSync(modelsDir,{
         recursive:true
     });
 }
