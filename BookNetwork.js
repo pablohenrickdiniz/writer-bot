@@ -38,7 +38,7 @@ BookNetwork.cleanWord = function(word){
 };
 
 BookNetwork.cleanCharacter = function(chr){
-    return chr.charCodeAt(0) < 32?'':chr;
+    return chr.charCodeAt(0) < 32?'':chr.toLowerCase();
 };
 
 BookNetwork.prototype.add = function(line,text){
@@ -265,6 +265,7 @@ BookNetwork.prototype.getLearningRate = function(){
 BookNetwork.prototype.train = async function(epochs){
     let self = this;
     let trainingData = self.getTrainigData();
+    process.exit();
     let x = [];
     let y = [];
     for(let i = 0; i < trainingData.length;i++){
