@@ -115,10 +115,17 @@ BookNetwork.prototype.decodeLine = function(encoded){
 BookNetwork.prototype.getLineDiv = function(){
     let self = this;
     if(self.lineDiv === null){
-        let lineDiv = 2;
-        let max = Math.max(Object.keys(self.data).map((k) => parseInt(k)).reduce((a,b) => Math.max(a,b)),1);
+        let keys = Object.keys(self.data);
+        for(let i = 0; i < keys.length;i++){
+            keys[i] = parseInt(keys[i]);
+        }
+        max = Math.max(keys.reduce((a,b) => Math.max(a,b)),1);
+        keys = null;
+        let lineDiv = 0;
+        let count = 2;
         while(lineDiv < max){
-            lineDiv = Math.pow(lineDiv,2);
+            lineDiv = Math.pow(2,count);
+            count++;
         }
         self.lineDiv = lineDiv;
     }
@@ -138,12 +145,15 @@ BookNetwork.prototype.charcodeToText = function(charcodes){
 BookNetwork.prototype.getTextDiv = function(){
     let self = this;
     if(self.textDiv === null){
-        let textDiv = 2;
-        let max = Math.max(self.data.map(function(text){
-            return self.textToCharcode(text).reduce((a,b) => Math.max(a,b),1);
-        }).reduce((a,b) => Math.max(a,b),1),1);
+        let max = 0;
+        self.data.forEach(function(text){
+            max = Math.max(self.textToCharcode(text).reduce((a,b) => Math.max(a,b),1),max);
+        });
+        let count = 2;
+        let textDiv = 0;
         while(textDiv < max){
-            textDiv = Math.pow(textDiv,2);
+            textDiv = Math.pow(2,count);
+            count++;
         }
         self.textDiv = textDiv;
     }
@@ -153,10 +163,12 @@ BookNetwork.prototype.getTextDiv = function(){
 BookNetwork.prototype.getUnits = function(){
     let self = this;
     if(self.units === null){
-        let units = 2;
         let max = self.data.reduce((a,b) => Math.max(a,b.length),2);
+        let units = 0;
+        let count = 2;
         while(units < max){
-            units = Math.pow(units,2);
+            units = Math.pow(2,count);
+            count++;
         }
         self.units = units;
     }
@@ -173,6 +185,7 @@ BookNetwork.prototype.getTrainigData = function(){
     if(self.trainingData === null){
         let tmp = [];
         let lines = Object.keys(self.data);
+    
         for(let i = 0; i < lines.length;i++){
             let line = lines[i];
             let text = self.data[line];
@@ -265,7 +278,6 @@ BookNetwork.prototype.getLearningRate = function(){
 BookNetwork.prototype.train = async function(epochs){
     let self = this;
     let trainingData = self.getTrainigData();
-    process.exit();
     let x = [];
     let y = [];
     for(let i = 0; i < trainingData.length;i++){
