@@ -1,12 +1,12 @@
 const BookNetwork = require('./BookNetwork');
 const fs = require('fs');
 const path = require('path');
-const dataDir = './data';
-const outputDir = './output';
-const modelsDir = './models';
-//const dataDir = '/content/drive/MyDrive/ia-projects/writer-bot/data';
-//const outputDir = '/content/drive/MyDrive/ia-projects/writer-bot/output';
-//const modelsDir = '/content/drive/MyDrive/ia-projects/writer-bot/models';
+//const dataDir = './data';
+//const outputDir = './output';
+//const modelsDir = './models';
+const dataDir = '/content/drive/MyDrive/ia-projects/writer-bot/data';
+const outputDir = '/content/drive/MyDrive/ia-projects/writer-bot/output';
+const modelsDir = '/content/drive/MyDrive/ia-projects/writer-bot/models';
 
 if(!fs.existsSync(dataDir)){
     fs.mkdirSync(dataDir,{
