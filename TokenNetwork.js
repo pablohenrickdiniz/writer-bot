@@ -36,31 +36,6 @@ TokenNetwork.prototype.loadText = function(text){
     return this;
 };
 
-TokenNetwork.prototype.getCharactersCount = function(){
-    return this.characters.length;
-};
-
-TokenNetwork.prototype.getModel = async function(){
-    let self = this;
-    if(self.model === null){
-        let model;
-        if(fs.existsSync(self.getModelJsonFile())){
-            model = await tf.loadLayersModel('file://'+self.getModelJsonFile());
-        }
-        else{
-            let units = self.units;
-            model = tf.sequential();
-            model.addLayer(tf.layers.dense({units:units,inputShape:[1,2]}));
-        }
-        model.compile({
-            loss:'meanSquaredError',
-            optimizer:tf.train.sgd(self.getLearningRate())        
-        });
-        self.model = model;
-    }
-    return self.model;
-};
-
 
 TokenNetwork.prototype.train = async function(epochs){
     let self = this;
@@ -75,8 +50,7 @@ TokenNetwork.prototype.train = async function(epochs){
     epochs = epochs || 100;
     let loss = 0;
     do{
-        self.model = null;
-        let model = await self.getModel();
+        let model = self.model;
         let tx = tf.tensor(x);
         let ty = tf.tensor(y);
         await model.fit(tx,ty,{
@@ -101,21 +75,23 @@ TokenNetwork.prototype.train = async function(epochs){
                 }
             }
         });
-    }while(isNaN(loss));
-    if(!isNaN(loss)){
-        await self.save();
     }
+    while(isNaN(loss));
 };
 
-TokenNetwork.prototype.predict = async function(lines){
+TokenNetwork.prototype.predictLine = async function(index){
     let self = this;
-    lines = lines.constructor !== [].constructor?[lines]:lines;
-    let model = await self.getModel();
-    lines = lines.map((l) => this.encodeLine(l));
-    let result = model.predict(tf.tensor(lines,[lines.length,1])).arraySync();
-    return result.map(function(encoded){
-        return self.decodeText(encoded);
-    }).join("\n");
+    let model = self.model;
+    let units = self.units;
+    let pos = 0;
+    let terms = [];
+    do{
+        let term = model.predict(tf.tensor([index,pos])).arraySync()[0];
+        terms.push(term);
+        pos++;
+    }
+    while(term < 0 || pos < units);
+    return terms;
 };
 
 TokenNetwork.prototype.save = async function(){
@@ -152,6 +128,7 @@ function initialize(self){
     let data = [];
     let tokenInterval = null;
     let units = null;
+    let model = null;
 
     let reset = function(){
         tokens = null;
@@ -315,6 +292,24 @@ function initialize(self){
                 units = tmp;
             }
             return units;
+        }
+    });
+
+    Object.defineProperty(self,'model',{
+        get:function(){
+            if(model === null){
+                let units = self.units;
+                let model = tf.sequential();
+                model.addLayer(tf.layers.dense({units:units,inputShape:[1,2]}));
+                model.compile({
+                    loss:'meanSquaredError',
+                    optimizer:tf.train.sgd(self.learningRate)        
+                });
+            }
+            return model;
+        },
+        set:function(m){
+            model = m;
         }
     });
 }

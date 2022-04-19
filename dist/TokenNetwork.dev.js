@@ -53,68 +53,12 @@ TokenNetwork.prototype.loadText = function (text) {
   return this;
 };
 
-TokenNetwork.prototype.getCharactersCount = function () {
-  return this.characters.length;
-};
-
-TokenNetwork.prototype.getModel = function _callee() {
-  var self, model, units;
-  return regeneratorRuntime.async(function _callee$(_context) {
-    while (1) {
-      switch (_context.prev = _context.next) {
-        case 0:
-          self = this;
-
-          if (!(self.model === null)) {
-            _context.next = 13;
-            break;
-          }
-
-          if (!fs.existsSync(self.getModelJsonFile())) {
-            _context.next = 8;
-            break;
-          }
-
-          _context.next = 5;
-          return regeneratorRuntime.awrap(tf.loadLayersModel('file://' + self.getModelJsonFile()));
-
-        case 5:
-          model = _context.sent;
-          _context.next = 11;
-          break;
-
-        case 8:
-          units = self.units;
-          model = tf.sequential();
-          model.addLayer(tf.layers.dense({
-            units: units,
-            inputShape: [1, 2]
-          }));
-
-        case 11:
-          model.compile({
-            loss: 'meanSquaredError',
-            optimizer: tf.train.sgd(self.getLearningRate())
-          });
-          self.model = model;
-
-        case 13:
-          return _context.abrupt("return", self.model);
-
-        case 14:
-        case "end":
-          return _context.stop();
-      }
-    }
-  }, null, this);
-};
-
-TokenNetwork.prototype.train = function _callee2(epochs) {
+TokenNetwork.prototype.train = function _callee(epochs) {
   var self, trainingData, x, y, i, t, loss, _loop;
 
-  return regeneratorRuntime.async(function _callee2$(_context3) {
+  return regeneratorRuntime.async(function _callee$(_context2) {
     while (1) {
-      switch (_context3.prev = _context3.next) {
+      switch (_context2.prev = _context2.next) {
         case 0:
           self = this;
           trainingData = self.trainingData;
@@ -132,19 +76,14 @@ TokenNetwork.prototype.train = function _callee2(epochs) {
 
           _loop = function _loop() {
             var model, tx, ty;
-            return regeneratorRuntime.async(function _loop$(_context2) {
+            return regeneratorRuntime.async(function _loop$(_context) {
               while (1) {
-                switch (_context2.prev = _context2.next) {
+                switch (_context.prev = _context.next) {
                   case 0:
-                    self.model = null;
-                    _context2.next = 3;
-                    return regeneratorRuntime.awrap(self.getModel());
-
-                  case 3:
-                    model = _context2.sent;
+                    model = self.model;
                     tx = tf.tensor(x);
                     ty = tf.tensor(y);
-                    _context2.next = 8;
+                    _context.next = 5;
                     return regeneratorRuntime.awrap(model.fit(tx, ty, {
                       epochs: epochs,
                       verbose: 0,
@@ -168,34 +107,54 @@ TokenNetwork.prototype.train = function _callee2(epochs) {
                       }
                     }));
 
-                  case 8:
+                  case 5:
                   case "end":
-                    return _context2.stop();
+                    return _context.stop();
                 }
               }
             });
           };
 
         case 8:
-          _context3.next = 10;
+          _context2.next = 10;
           return regeneratorRuntime.awrap(_loop());
 
         case 10:
           if (isNaN(loss)) {
-            _context3.next = 8;
+            _context2.next = 8;
             break;
           }
 
         case 11:
-          if (isNaN(loss)) {
-            _context3.next = 14;
-            break;
-          }
+        case "end":
+          return _context2.stop();
+      }
+    }
+  }, null, this);
+};
 
-          _context3.next = 14;
-          return regeneratorRuntime.awrap(self.save());
+TokenNetwork.prototype.predictLine = function _callee2(index) {
+  var self, model, units, pos, terms, _term;
 
-        case 14:
+  return regeneratorRuntime.async(function _callee2$(_context3) {
+    while (1) {
+      switch (_context3.prev = _context3.next) {
+        case 0:
+          self = this;
+          model = self.model;
+          units = self.units;
+          pos = 0;
+          terms = [];
+
+          do {
+            _term = model.predict(tf.tensor([index, pos])).arraySync()[0];
+            terms.push(_term);
+            pos++;
+          } while (term < 0 || pos < units);
+
+          return _context3.abrupt("return", terms);
+
+        case 7:
         case "end":
           return _context3.stop();
       }
@@ -203,49 +162,18 @@ TokenNetwork.prototype.train = function _callee2(epochs) {
   }, null, this);
 };
 
-TokenNetwork.prototype.predict = function _callee3(lines) {
-  var _this = this;
-
-  var self, model, result;
+TokenNetwork.prototype.save = function _callee3() {
+  var self, model, modelDir;
   return regeneratorRuntime.async(function _callee3$(_context4) {
     while (1) {
       switch (_context4.prev = _context4.next) {
         case 0:
           self = this;
-          lines = lines.constructor !== [].constructor ? [lines] : lines;
-          _context4.next = 4;
-          return regeneratorRuntime.awrap(self.getModel());
-
-        case 4:
-          model = _context4.sent;
-          lines = lines.map(function (l) {
-            return _this.encodeLine(l);
-          });
-          result = model.predict(tf.tensor(lines, [lines.length, 1])).arraySync();
-          return _context4.abrupt("return", result.map(function (encoded) {
-            return self.decodeText(encoded);
-          }).join("\n"));
-
-        case 8:
-        case "end":
-          return _context4.stop();
-      }
-    }
-  }, null, this);
-};
-
-TokenNetwork.prototype.save = function _callee4() {
-  var self, model, modelDir;
-  return regeneratorRuntime.async(function _callee4$(_context5) {
-    while (1) {
-      switch (_context5.prev = _context5.next) {
-        case 0:
-          self = this;
-          _context5.next = 3;
+          _context4.next = 3;
           return regeneratorRuntime.awrap(self.getModel());
 
         case 3:
-          model = _context5.sent;
+          model = _context4.sent;
           modelDir = self.getModelDir();
 
           if (!fs.existsSync(modelDir)) {
@@ -254,7 +182,7 @@ TokenNetwork.prototype.save = function _callee4() {
             });
           }
 
-          _context5.next = 8;
+          _context4.next = 8;
           return regeneratorRuntime.awrap(model.save('file://' + modelDir));
 
         case 8:
@@ -262,7 +190,7 @@ TokenNetwork.prototype.save = function _callee4() {
 
         case 9:
         case "end":
-          return _context5.stop();
+          return _context4.stop();
       }
     }
   }, null, this);
@@ -290,6 +218,7 @@ function initialize(self) {
   var data = [];
   var tokenInterval = null;
   var units = null;
+  var model = null;
 
   var reset = function reset() {
     tokens = null;
@@ -456,6 +385,30 @@ function initialize(self) {
       }
 
       return units;
+    }
+  });
+  Object.defineProperty(self, 'model', {
+    get: function get() {
+      if (model === null) {
+        var _units = self.units;
+
+        var _model = tf.sequential();
+
+        _model.addLayer(tf.layers.dense({
+          units: _units,
+          inputShape: [1, 2]
+        }));
+
+        _model.compile({
+          loss: 'meanSquaredError',
+          optimizer: tf.train.sgd(self.learningRate)
+        });
+      }
+
+      return model;
+    },
+    set: function set(m) {
+      model = m;
     }
   });
 }
