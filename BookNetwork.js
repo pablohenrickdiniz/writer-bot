@@ -1,6 +1,7 @@
 const tf = require('@tensorflow/tfjs-node-gpu');
 const path = require('path');
 const fs = require('fs');
+const TextUtils = require('./TextUtils');
 
 function BookNetwork(name,modelsDir){
     let self = this;
@@ -14,32 +15,6 @@ function BookNetwork(name,modelsDir){
     self.modelsDir = modelsDir;
     self.learningRate = null;
 }
-
-BookNetwork.cleanText = function(text){
-    text = text.trim();
-    text = text.split(/[\r\n]+/);
-    text = text.map(BookNetwork.cleanLine);
-    return text.join("\n");
-};
-
-BookNetwork.cleanLine = function(text){
-    text = text.trim();
-    text = text.split(/\s+/);
-    text = text.map(BookNetwork.cleanWord);
-    text = text.filter(function(w){
-        return w.length > 0;
-    });
-    text = text.join(' ');
-    return text;
-};
-
-BookNetwork.cleanWord = function(word){
-    return word.trim().split('').map(BookNetwork.cleanCharacter).join('');
-};
-
-BookNetwork.cleanCharacter = function(chr){
-    return chr.charCodeAt(0) < 32?'':chr.toLowerCase();
-};
 
 BookNetwork.prototype.add = function(line,text){
     let self = this;
@@ -79,19 +54,12 @@ BookNetwork.prototype.getEncoded = function(line){
 
 BookNetwork.prototype.encodeText = function(text){
     let self = this;
-    let textDiv = self.getTextDiv();
-    return self.pad(self.textToCharcode(text).map((c) => c/textDiv));
+    return self.pad(TextUtils.encodeText(text,self.getTextDiv()));
 };
 
 BookNetwork.prototype.decodeText = function(encoded){
     let self = this;
-    let textDiv = self.getTextDiv();
-    let decoded = encoded.map(function(charcode){
-        return Math.round(charcode*textDiv);
-    }).filter(function(charcode){
-        return charcode >= 32;
-    });
-    return self.charcodeToText(decoded);
+    return TextUtils.decodeText(encoded,self.getTextDiv());
 };
 
 BookNetwork.prototype.pad = function(arr){
@@ -132,22 +100,12 @@ BookNetwork.prototype.getLineDiv = function(){
     return self.lineDiv;
 };
 
-BookNetwork.prototype.textToCharcode = function(text){
-    return text.split('').map((c) => c.charCodeAt(0));
-};
-
-BookNetwork.prototype.charcodeToText = function(charcodes){
-    return charcodes.map(function(c){
-        return String.fromCharCode(c);
-    }).join('');
-};
-
 BookNetwork.prototype.getTextDiv = function(){
     let self = this;
     if(self.textDiv === null){
         let max = 0;
         self.data.forEach(function(text){
-            max = Math.max(self.textToCharcode(text).reduce((a,b) => Math.max(a,b),1),max);
+            max = Math.max(TextUtils.charcodesFromText(text).reduce((a,b) => Math.max(a,b),1),max);
         });
         let count = 2;
         let textDiv = 0;
