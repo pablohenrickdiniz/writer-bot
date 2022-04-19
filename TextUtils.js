@@ -1,27 +1,18 @@
-function cleanCharacter(chr,allowedChr){
-    if(allowedChr.indexOf(chr) !== -1){
-        return chr;
-    }
-    return '';
+function cleanWord(word){
+    return word.trim().split('').filter((chr) => chr.length > 0).join('');
 }
 
-function cleanWord(word,allowedChr){
-    return word.trim().split('').map(function(chr){
-        return cleanCharacter(chr,allowedChr);
-    }).filter((chr) => chr.length > 0).join('');
-}
-
-function cleanLine(text,allowedChr){
+function cleanLine(text){
     return text.trim().split(/\s+/).map(function(word){
-        return cleanWord(word,allowedChr);
+        return cleanWord(word);
     }).filter(function(word){
         return word.length > 0;
     }).join(' ');
 }
 
-function cleanText(text,allowedChr){
+function cleanText(text){
     return text.trim().split(/[\r\n]+/).map(function(line){
-        return cleanLine(line,allowedChr);
+        return cleanLine(line);
     }).filter((l) => l.length > 0).join("\n");
 }
 
@@ -104,7 +95,6 @@ let TextUtils = {
     cleanText:cleanText,
     cleanLine:cleanLine,
     cleanWord:cleanWord,
-    cleanCharacter:cleanCharacter,
     charcodesFromText:charcodesFromText,
     textFromCharcodes:textFromCharcodes,
     encodeText:encodeText,

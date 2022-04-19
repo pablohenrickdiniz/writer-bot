@@ -2,6 +2,7 @@ const tf = require('@tensorflow/tfjs-node-gpu');
 const path = require('path');
 const fs = require('fs');
 const TextUtils = require('./TextUtils');
+const { atanh } = require('@tensorflow/tfjs-node-gpu');
 
 function TokenNetwork(options){
     let self = this;
@@ -21,7 +22,8 @@ TokenNetwork.prototype.loadTextFile = function(filename){
 
 TokenNetwork.prototype.loadText = function(text){
     let self = this;
-    text = TextUtils.cleanText(text,self.characters);
+    text = TextUtils.cleanText(text);
+    self.characters = self.characters.concat(TextUtils.charactersFromText(text));
     let paragraphs = TextUtils.split(text,self.paragraphSeparators).map(function(paragraph){
         let tokens = [];
         TextUtils.split(paragraph,self.letterSeparators).forEach(function(w){
@@ -46,15 +48,9 @@ TokenNetwork.prototype.getModel = async function(){
             model = await tf.loadLayersModel('file://'+self.getModelJsonFile());
         }
         else{
-            let units = self.getUnits();
-            let halfUnits = units/2;
-            model = tf.sequential({
-                layers:[
-                    tf.layers.dense({units:halfUnits,inputShape:[1]}),
-                    tf.layers.dense({units:halfUnits}),
-                    tf.layers.dense({units:units})
-                ]
-            });
+            let units = self.units;
+            model = tf.sequential();
+            model.addLayer(tf.layers.dense({units:units,inputShape:[1,2]}));
         }
         model.compile({
             loss:'meanSquaredError',
@@ -68,7 +64,7 @@ TokenNetwork.prototype.getModel = async function(){
 
 TokenNetwork.prototype.train = async function(epochs){
     let self = this;
-    let trainingData = self.getTrainigData();
+    let trainingData = self.trainingData;
     let x = [];
     let y = [];
     for(let i = 0; i < trainingData.length;i++){
@@ -155,6 +151,14 @@ function initialize(self){
     let tokenSeparators = ['.',',',';','!','\'','(',')',':','?'];
     let data = [];
     let tokenInterval = null;
+    let units = null;
+
+    let reset = function(){
+        tokens = null;
+        tokenMaxLength = null;
+        units = null;
+        tokenInterval = null;
+    };
 
 
     Object.defineProperty(self,'tokenMaxLength',{
@@ -166,17 +170,25 @@ function initialize(self){
         }
     });
 
+    Object.defineProperty(self,'paragraphs',{
+        get:function(){
+            let tmp = [];
+            data.forEach(function(paragraphs){
+                tmp = tmp.concat(paragraphs);
+            });
+            return tmp;
+        }
+    });
+
     Object.defineProperty(self,'tokens',{
         get:function(){
             if(tokens === null){
                 tokens = [];
-                data.forEach(function(text){
-                    text.forEach(function(paragraph){
-                        paragraph.forEach(function(token){
-                            if(tokens.indexOf(token) === -1){
-                                tokens.push(token);
-                            }
-                        });
+                self.paragraphs.forEach(function(paragraph){
+                    paragraph.forEach(function(token){
+                        if(tokens.indexOf(token) === -1){
+                            tokens.push(token);
+                        }
                     });
                 });
                 tokens = tokens.sort(function(a,b){
@@ -191,7 +203,7 @@ function initialize(self){
         },
         set:function(tks){
             if(!tks){
-                tokens = null;
+                reset();
             }
         }
     });
@@ -201,7 +213,8 @@ function initialize(self){
             return characters;
         },
         set:function(chrs){
-            characters = [...new Set(chrs)].sort();
+            characters = [...new Set(chrs)].sort((a,b) => a.charCodeAt(0) - b.charCodeAt(0));
+            reset();
         }
     });
 
@@ -227,6 +240,7 @@ function initialize(self){
         },
         set:function(ls){
             letterSeparators = [...new Set(ls)].sort();
+            reset();
         }
     });
 
@@ -236,6 +250,7 @@ function initialize(self){
         },
         set:function(ps){
             paragraphSeparators = [...new Set(ps)].sort();
+            reset();
         }
     });
 
@@ -245,6 +260,7 @@ function initialize(self){
         },
         set:function(ts){
             tokenSeparators = [...new Set(ts)].sort();
+            reset();
         }
     });
 
@@ -254,9 +270,45 @@ function initialize(self){
         }
     });
 
+    Object.defineProperty(self,'trainingData',{
+        get:function(){
+            let trainingData = [];
+            return data.forEach(function(phrs){
+                trainingData = trainingData.concat(phrs.map(function(tks){
+                    return tks.map((t) => self.getTokenCode(t));
+                }));
+            });
+        }
+    });
+
     Object.defineProperty(self,'tokenInterval',{
         get:function(){
-            return Math.pow(self.charactersCount,self.tokenMaxLength);
+            if(tokenInterval === null){
+                tokenInterval = Math.pow(self.charactersCount,self.tokenMaxLength);
+            }
+            return tokenInterval;
+        }
+    });
+
+    Object.defineProperty(self,'maxParagraphLength',{
+        get:function(){
+            return self.paragraphs.reduce((a,b) => Math.max(a,b.length),0);
+        }
+    });
+
+    Object.defineProperty(self,'units',{
+        get:function(){
+            if(units === null){
+                let count = 2;
+                let length = self.maxParagraphLength;
+                let tmp = 2;
+                while(tmp < length){
+                    tmp = Math.pow(2,count);
+                    count++;
+                }
+                units = tmp;
+            }
+            return units;
         }
     });
 }

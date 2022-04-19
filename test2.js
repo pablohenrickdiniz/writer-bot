@@ -7,12 +7,9 @@ const dataDir = './data';
 
 async function init(){
     let contents = fs.readFileSync("./data/biblia.txt",{encoding:'utf-8'});
-    let network = new TokenNetwork({
-        characters:TextUtils.charactersFromText(contents)
-    });
+    let network = new TokenNetwork();
     network.loadText(contents);
-    console.log(network.getTokenCode('\tü'));
-    fs.writeFileSync('tokens.json',JSON.stringify(network.tokens,null,4));
+    fs.writeFileSync('training-data.json',JSON.stringify(network.trainingData,null,4));
     /*
     while(true){
         const files = fs.readdirSync(dataDir).map((f) => path.join(dataDir,f));
