@@ -273,11 +273,17 @@ function initialize(self){
     Object.defineProperty(self,'trainingData',{
         get:function(){
             let trainingData = [];
-            return data.forEach(function(phrs){
+            let units = self.units;
+            data.forEach(function(phrs){
                 trainingData = trainingData.concat(phrs.map(function(tks){
-                    return tks.map((t) => self.getTokenCode(t));
+                    tks = tks.map((t) => self.getTokenCode(t));
+                    while(tks.length < units){
+                        tks.push(-1);
+                    }
+                    return tks;
                 }));
             });
+            return trainingData;
         }
     });
 

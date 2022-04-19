@@ -407,13 +407,21 @@ function initialize(self) {
   Object.defineProperty(self, 'trainingData', {
     get: function get() {
       var trainingData = [];
-      return data.forEach(function (phrs) {
+      var units = self.units;
+      data.forEach(function (phrs) {
         trainingData = trainingData.concat(phrs.map(function (tks) {
-          return tks.map(function (t) {
+          tks = tks.map(function (t) {
             return self.getTokenCode(t);
           });
+
+          while (tks.length < units) {
+            tks.push(-1);
+          }
+
+          return tks;
         }));
       });
+      return trainingData;
     }
   });
   Object.defineProperty(self, 'tokenInterval', {
