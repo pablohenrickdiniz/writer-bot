@@ -2,7 +2,6 @@ const tf = require('@tensorflow/tfjs-node-gpu');
 const path = require('path');
 const fs = require('fs');
 const TextUtils = require('./TextUtils');
-const { atanh } = require('@tensorflow/tfjs-node-gpu');
 
 function TokenNetwork(options){
     let self = this;
@@ -15,8 +14,7 @@ function TokenNetwork(options){
 
 TokenNetwork.prototype.loadTextFile = function(filename){
     let self = this;
-    let contents = fs.readFileSync(filename,{encoding:'utf-8'});
-    self.loadText(contents);
+    self.loadText(fs.readFileSync(filename,{encoding:'utf-8'}));
     return self;
 };
 
@@ -37,21 +35,25 @@ TokenNetwork.prototype.loadText = function(text){
 };
 
 
-TokenNetwork.prototype.train = async function(epochs){
+TokenNetwork.prototype.train = async function(epochs,step){
     let self = this;
     let trainingData = self.trainingData;
     let x = [];
     let y = [];
+    let lineInterval = self.lineInterval;
+    let units = self.units;
     for(let i = 0; i < trainingData.length;i++){
-        let t = trainingData[i];
-        x.push(t[0]);
-        y.push(t[1]);
+        for(let j = 0; j < trainingData[i].length;j++){
+            x.push([i/lineInterval,j/units]);
+            y.push(trainingData[i][j]);
+        }
+        console.log(i*100 / trainingData.length);
     }
     epochs = epochs || 100;
     let loss = 0;
     do{
         let model = self.model;
-        let tx = tf.tensor(x);
+        let tx = tf.tensor(x,[x.length,2]);
         let ty = tf.tensor(y);
         await model.fit(tx,ty,{
             epochs:epochs,
@@ -59,18 +61,14 @@ TokenNetwork.prototype.train = async function(epochs){
             callbacks:{
                 onEpochEnd:function(logs,b){
                     loss = b.loss;
-                    if(logs % 1 === 0){
-                        let log = [[
-                            logs.toString().padStart(epochs.toString().length,'0'),
-                            epochs
-                        ].join('/'),'treinando '+self.name+', loss:'+b.loss].join(' - ');
-                        if(!isNaN(loss)){
-                            console.log(log);
-                        }
+                    if(!isNaN(loss) && step){
+                        self.loss = loss;
+                        step(logs,epochs,loss);
                     }
-                    if(isNaN(loss)){
+                    else{
                         model.stopTraining = true;
                         self.incrementLearningRate();
+                        self.model = null;
                     }
                 }
             }
@@ -79,35 +77,81 @@ TokenNetwork.prototype.train = async function(epochs){
     while(isNaN(loss));
 };
 
-TokenNetwork.prototype.predictLine = async function(index){
+TokenNetwork.prototype.predict = function(index){
     let self = this;
     let model = self.model;
-    let units = self.units;
-    let pos = 0;
-    let terms = [];
-    do{
-        let term = model.predict(tf.tensor([index,pos])).arraySync()[0];
-        terms.push(term);
-        pos++;
+    let results = [];
+    for(let i = 0; i < self.units;i++){
+        results.push(model.predict(tf.tensor([[index/self.lineInterval,i/self.units]])).dataSync()[0]);
     }
-    while(term < 0 || pos < units);
-    return terms;
+    return results.filter((w) => w >= 0).map(function(w){
+        return self.getNearestToken(w);
+    }).join(' ');
 };
 
-TokenNetwork.prototype.save = async function(){
+TokenNetwork.prototype.toJSON = function(){
     let self = this;
-    let model = await self.getModel();
-    let modelDir = self.getModelDir();
-    if(!fs.existsSync(modelDir)){
-        fs.mkdirSync(modelDir,{
+    return {
+        learningRate:self.learningRate,
+        loss:self.loss,
+        characters:self.characters,
+        letterSeparators:self.letterSeparators,
+        paragraphSeparators:self.paragraphSeparators,
+        tokenSeparators:self.tokenSeparators
+    };
+};
+
+TokenNetwork.prototype.save = async function(outputdir){
+    let self = this;
+    let model = self.model;
+    if(!fs.existsSync(outputdir)){
+        fs.mkdirSync(outputdir,{
             recursive:true
         });
     }
-    await model.save('file://'+modelDir);
-    self.saveLearningRate();
+    await model.save('file://'+outputdir);
+    fs.writeFileSync(path.join(outputdir,'data.json'),JSON.stringify(this,null,4));
 };
 
-TokenNetwork.prototype.getTokenCode = function(token){
+TokenNetwork.prototype.load = async function(outputdir){
+    let self = this;
+    if(fs.existsSync(outputdir)){
+        let dataFile = path.join(outputdir,'data.json')
+        if(fs.existsSync(dataFile)){
+            let options = JSON.parse(fs.readFileSync(dataFile,{encoding:'utf-8'}));
+            Object.keys(options).forEach(function(k){
+                self[k] = options[k];
+            });
+        }
+        let modelFile = path.join(outputdir,'model.json');
+        if(fs.existsSync(modelFile)){
+            let model = await tf.loadLayersModel('file://'+modelFile);
+            model.compile({
+                loss:'meanSquaredError',
+                optimizer:tf.train.sgd(self.learningRate)        
+            });
+            self.model = model;
+        }
+    }
+};
+
+TokenNetwork.prototype.getNearestToken = function(weight){
+    let self = this; 
+    let diff = null;
+    let nearest = null;
+    let tokensWeights = self.tokensWeights;
+    Object.keys(tokensWeights).forEach(function(token){
+        let w = tokensWeights[token];
+        let d  = Math.abs(weight-w);
+        if(diff === null || diff > d){
+            diff = d;
+            nearest = token;
+        }
+    });
+    return nearest;
+};
+
+TokenNetwork.prototype.getTokenWeight = function(token){
     let self = this;
     let charactersCount = self.charactersCount;
     let prod = token.split('').map((chr) => self.characters.indexOf(chr)).reduce(function(prod,current,index){
@@ -117,24 +161,42 @@ TokenNetwork.prototype.getTokenCode = function(token){
 };
 
 
+TokenNetwork.prototype.incrementLearningRate = function(){
+    let self = this;
+    let zeros = 0;
+    let tmp = String(self.learningRate).split('.');
+    if(tmp[1]){
+        zeros = tmp[1].length;
+    }
+    self.learningRate = 1/Math.pow(10,zeros+1);
+    return self;
+};
+
+
+
 function initialize(self){
     let tokenMaxLength = null;
     let tokens = null;
+    let tokensWeights = null;
     let characters = [];
     let learningRate = 0.001;
+    let loss = null;
     let letterSeparators = [' '];
     let paragraphSeparators = ['\n'];
     let tokenSeparators = ['.',',',';','!','\'','(',')',':','?'];
     let data = [];
     let tokenInterval = null;
+    let lineInterval = null;
     let units = null;
     let model = null;
 
     let reset = function(){
         tokens = null;
+        tokensWeights = null;
         tokenMaxLength = null;
         units = null;
         tokenInterval = null;
+        lineInterval = null;
     };
 
 
@@ -185,6 +247,19 @@ function initialize(self){
         }
     });
 
+    Object.defineProperty(self,'tokensWeights',{
+        get:function(){
+            if(tokensWeights === null){
+                let self = this;
+                tokensWeights = [];
+                self.tokens.forEach(function(token){
+                    tokensWeights[token] = self.getTokenWeight(token);
+                });
+            }
+            return tokensWeights;
+        }
+    });
+
     Object.defineProperty(self,'characters',{
         get:function(){
             return characters;
@@ -207,7 +282,7 @@ function initialize(self){
             return learningRate;
         },
         set:function(lr){
-            learningRate = Math.abs(lr);
+            learningRate = lr;
         }
     });
 
@@ -253,7 +328,7 @@ function initialize(self){
             let units = self.units;
             data.forEach(function(phrs){
                 trainingData = trainingData.concat(phrs.map(function(tks){
-                    tks = tks.map((t) => self.getTokenCode(t));
+                    tks = tks.map((t) => self.getTokenWeight(t));
                     while(tks.length < units){
                         tks.push(-1);
                     }
@@ -270,6 +345,21 @@ function initialize(self){
                 tokenInterval = Math.pow(self.charactersCount,self.tokenMaxLength);
             }
             return tokenInterval;
+        }
+    });
+
+    Object.defineProperty(self,'lineInterval',{
+        get:function(){
+            if(lineInterval === null){
+                let length = self.paragraphs.length;
+                let count = 2;
+                do{
+                    lineInterval = Math.pow(2,count);
+                    count++;
+                }
+                while(lineInterval < length);
+            }
+            return lineInterval;
         }
     });
 
@@ -299,17 +389,29 @@ function initialize(self){
         get:function(){
             if(model === null){
                 let units = self.units;
-                let model = tf.sequential();
-                model.addLayer(tf.layers.dense({units:units,inputShape:[1,2]}));
-                model.compile({
+                let m = tf.sequential();
+                m.add(tf.layers.dense({units:1,inputShape:[2]}));
+                m.compile({
                     loss:'meanSquaredError',
                     optimizer:tf.train.sgd(self.learningRate)        
                 });
+                model = m;
             }
             return model;
         },
         set:function(m){
             model = m;
+        }
+    });
+
+    Object.defineProperty(self,'loss',{
+        set:function(l){
+            if(!isNaN(l)){
+                loss = l;
+            }
+        },
+        get:function(){
+            return loss;
         }
     });
 }

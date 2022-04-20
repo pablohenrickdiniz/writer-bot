@@ -6,10 +6,22 @@ const dataDir = './data';
 
 
 async function init(){
-    let contents = fs.readFileSync("./data/biblia.txt",{encoding:'utf-8'});
     let network = new TokenNetwork();
-    network.loadText(contents);
-    fs.writeFileSync('training-data.json',JSON.stringify(network.trainingData,null,4));
+    await network.load('./models/biblia');
+    network.loadTextFile('./data/biblia.txt');
+    while(true){
+        await network.train(100,function(logs,epochs,loss){
+            let log = logs.toString().padStart(epochs.toString().length,'0')+'/'+epochs+' - treinando (loss:'+loss+')';
+            console.log(log);
+        });
+        network.save('./models/biblia');
+        let text = [];
+        for(let i = 0; i < 100;i++){
+            text.push(network.predict(i));
+        }
+        fs.writeFileSync('output.txt',text.join("\n"));
+    }
+    //fs.writeFileSync('training-data.json',JSON.stringify(network.trainingData,null,4));
     /*
     while(true){
         const files = fs.readdirSync(dataDir).map((f) => path.join(dataDir,f));
