@@ -148,7 +148,6 @@ BookNetwork.prototype.getTrainigData = function(){
             let line = lines[i];
             let text = self.data[line];
             tmp.push([
-                self.encodeLine(line),
                 self.encodeText(text)
             ]);
         }
@@ -176,14 +175,17 @@ BookNetwork.prototype.getModel = async function(){
         }
         else{
             let units = self.getUnits();
-            let halfUnits = units/2;
-            model = tf.sequential({
-                layers:[
-                    tf.layers.dense({units:halfUnits,inputShape:[1]}),
-                    tf.layers.dense({units:halfUnits}),
-                    tf.layers.dense({units:units})
-                ]
+            model = tf.sequential();
+            let rnn = tf.layers.simpleRNN({
+                units:1,
+                returnSequences:true,
+                activation:'linear'
             });
+            let inputLayer = tf.input({
+                shape:[units,1]
+            });
+            rnn.apply(inputLayer);
+            model.add(rnn);
         }
         model.compile({
             loss:'meanSquaredError',

@@ -16,9 +16,6 @@ var fs = require('fs');
 
 var TextUtils = require('./TextUtils');
 
-var _require = require('@tensorflow/tfjs-node-gpu'),
-    atanh = _require.atanh;
-
 function TokenNetwork(options) {
   var self = this;
   initialize(self);
@@ -30,10 +27,9 @@ function TokenNetwork(options) {
 
 TokenNetwork.prototype.loadTextFile = function (filename) {
   var self = this;
-  var contents = fs.readFileSync(filename, {
+  self.loadText(fs.readFileSync(filename, {
     encoding: 'utf-8'
-  });
-  self.loadText(contents);
+  }));
   return self;
 };
 
@@ -41,20 +37,21 @@ TokenNetwork.prototype.loadText = function (text) {
   var self = this;
   text = TextUtils.cleanText(text);
   self.characters = self.characters.concat(TextUtils.charactersFromText(text));
-  var paragraphs = TextUtils.split(text, self.paragraphSeparators).map(function (paragraph) {
-    var tokens = [];
-    TextUtils.split(paragraph, self.letterSeparators).forEach(function (w) {
-      tokens = tokens.concat(TextUtils.split(w, self.tokenSeparators, true));
-    });
-    return tokens;
-  });
-  self.data.push(paragraphs);
+  self.data = TextUtils.charcodesFromText(text);
   self.tokens = null;
   return this;
 };
 
-TokenNetwork.prototype.train = function _callee(epochs) {
-  var self, trainingData, x, y, i, t, loss, _loop;
+TokenNetwork.prototype.lineTo3d = function (l) {
+  var self = this;
+
+  var line = _toConsumableArray(l);
+
+  return tf.tensor(line, [1, line.length, 1]).arraySync()[0];
+};
+
+TokenNetwork.prototype.train = function _callee(epochs, step) {
+  var self, trainingData, x, y, i, loss, _loop;
 
   return regeneratorRuntime.async(function _callee$(_context2) {
     while (1) {
@@ -65,10 +62,9 @@ TokenNetwork.prototype.train = function _callee(epochs) {
           x = [];
           y = [];
 
-          for (i = 0; i < trainingData.length; i++) {
-            t = trainingData[i];
-            x.push(t[0]);
-            y.push(t[1]);
+          for (i = 0; i < trainingData.length && i < 10; i++) {
+            x.push(trainingData[i][0]);
+            y.push(trainingData[i][1]);
           }
 
           epochs = epochs || 100;
@@ -85,23 +81,21 @@ TokenNetwork.prototype.train = function _callee(epochs) {
                     ty = tf.tensor(y);
                     _context.next = 5;
                     return regeneratorRuntime.awrap(model.fit(tx, ty, {
+                      testingData: [tx, ty],
                       epochs: epochs,
+                      //  batchSize: 32,
                       verbose: 0,
                       callbacks: {
                         onEpochEnd: function onEpochEnd(logs, b) {
                           loss = b.loss;
 
-                          if (logs % 1 === 0) {
-                            var log = [[logs.toString().padStart(epochs.toString().length, '0'), epochs].join('/'), 'treinando ' + self.name + ', loss:' + b.loss].join(' - ');
-
-                            if (!isNaN(loss)) {
-                              console.log(log);
-                            }
-                          }
-
-                          if (isNaN(loss)) {
+                          if (!isNaN(loss) && step) {
+                            self.loss = loss;
+                            step(logs + 1, epochs, loss);
+                          } else {
                             model.stopTraining = true;
                             self.incrementLearningRate();
+                            self.model = null;
                           }
                         }
                       }
@@ -133,28 +127,51 @@ TokenNetwork.prototype.train = function _callee(epochs) {
   }, null, this);
 };
 
-TokenNetwork.prototype.predictLine = function _callee2(index) {
-  var self, model, units, pos, terms, _term;
+TokenNetwork.prototype.predict = function (text) {
+  var self = this;
+  var batchSize = self.batchSize;
+  text = text.substring(0, batchSize);
+  text = text.padEnd(batchSize, ' ');
+  var input = TextUtils.charcodesFromText(text);
+  var model = self.model;
+  var predict = model.predict(tf.tensor([self.lineTo3d(input)])).flatten().round().arraySync();
+  return TextUtils.textFromCharcodes(predict);
+};
 
+TokenNetwork.prototype.toJSON = function () {
+  var self = this;
+  return {
+    learningRate: self.learningRate,
+    loss: self.loss,
+    characters: self.characters,
+    letterSeparators: self.letterSeparators,
+    paragraphSeparators: self.paragraphSeparators,
+    tokenSeparators: self.tokenSeparators
+  };
+};
+
+TokenNetwork.prototype.save = function _callee2(outputdir) {
+  var self, model;
   return regeneratorRuntime.async(function _callee2$(_context3) {
     while (1) {
       switch (_context3.prev = _context3.next) {
         case 0:
           self = this;
           model = self.model;
-          units = self.units;
-          pos = 0;
-          terms = [];
 
-          do {
-            _term = model.predict(tf.tensor([index, pos])).arraySync()[0];
-            terms.push(_term);
-            pos++;
-          } while (term < 0 || pos < units);
+          if (!fs.existsSync(outputdir)) {
+            fs.mkdirSync(outputdir, {
+              recursive: true
+            });
+          }
 
-          return _context3.abrupt("return", terms);
+          _context3.next = 5;
+          return regeneratorRuntime.awrap(model.save('file://' + outputdir));
 
-        case 7:
+        case 5:
+          fs.writeFileSync(path.join(outputdir, 'data.json'), JSON.stringify(this, null, 4));
+
+        case 6:
         case "end":
           return _context3.stop();
       }
@@ -162,33 +179,49 @@ TokenNetwork.prototype.predictLine = function _callee2(index) {
   }, null, this);
 };
 
-TokenNetwork.prototype.save = function _callee3() {
-  var self, model, modelDir;
+TokenNetwork.prototype.load = function _callee3(outputdir) {
+  var self, dataFile, options, modelFile, model;
   return regeneratorRuntime.async(function _callee3$(_context4) {
     while (1) {
       switch (_context4.prev = _context4.next) {
         case 0:
           self = this;
-          _context4.next = 3;
-          return regeneratorRuntime.awrap(self.getModel());
 
-        case 3:
-          model = _context4.sent;
-          modelDir = self.getModelDir();
+          if (!fs.existsSync(outputdir)) {
+            _context4.next = 11;
+            break;
+          }
 
-          if (!fs.existsSync(modelDir)) {
-            fs.mkdirSync(modelDir, {
-              recursive: true
+          dataFile = path.join(outputdir, 'data.json');
+
+          if (fs.existsSync(dataFile)) {
+            options = JSON.parse(fs.readFileSync(dataFile, {
+              encoding: 'utf-8'
+            }));
+            Object.keys(options).forEach(function (k) {
+              self[k] = options[k];
             });
           }
 
+          modelFile = path.join(outputdir, 'model.json');
+
+          if (!fs.existsSync(modelFile)) {
+            _context4.next = 11;
+            break;
+          }
+
           _context4.next = 8;
-          return regeneratorRuntime.awrap(model.save('file://' + modelDir));
+          return regeneratorRuntime.awrap(tf.loadLayersModel('file://' + modelFile));
 
         case 8:
-          self.saveLearningRate();
+          model = _context4.sent;
+          model.compile({
+            loss: tf.losses.meanSquaredError,
+            optimizer: tf.train.sgd(self.learningRate)
+          });
+          self.model = model;
 
-        case 9:
+        case 11:
         case "end":
           return _context4.stop();
       }
@@ -196,35 +229,97 @@ TokenNetwork.prototype.save = function _callee3() {
   }, null, this);
 };
 
-TokenNetwork.prototype.getTokenCode = function (token) {
+TokenNetwork.prototype.weightToToken = function (weight) {
   var self = this;
   var charactersCount = self.charactersCount;
-  var prod = token.split('').map(function (chr) {
-    return self.characters.indexOf(chr);
-  }).reduce(function (prod, current, index) {
-    return prod + current * Math.pow(charactersCount, token.length - index - 1);
-  }, 0);
-  return prod / self.tokenInterval;
+  var prod = self.tokenInterval * weight;
+  var indexes = [];
+
+  while (prod > 0) {
+    indexes.push(prod % charactersCount);
+    prod = Math.floor(prod / charactersCount);
+  }
+
+  return indexes.map(function (index) {
+    return self.characters[index] ? self.characters[index] : null;
+  }).filter(function (chr) {
+    return chr !== null;
+  }).join('');
+};
+
+TokenNetwork.prototype.getNearestToken = function (weight) {
+  var self = this;
+  var index = parseInt(weight) - 1;
+
+  if (index >= 0 && self.tokens[index]) {
+    return self.tokens[index];
+  }
+
+  return null;
+  /*
+  let self = this; 
+  let diff = null;
+  let nearest = null;
+  let tokensWeights = self.tokensWeights;
+  Object.keys(tokensWeights).forEach(function(token){
+      let w = tokensWeights[token];
+      let d  = Math.abs(weight-w);
+      if(diff === null || diff > d){
+          diff = d;
+          nearest = token;
+      }
+  });
+  return nearest;*/
+};
+
+TokenNetwork.prototype.getTokenWeight = function (token) {
+  return this.tokens.indexOf(token) + 1;
+  /*
+  let self = this;
+  let charactersCount = self.charactersCount;
+  let prod = token.split('').map((chr) => self.characters.indexOf(chr)).reduce(function(prod,current,index){
+      return prod+(current*Math.pow(charactersCount,token.length-index-1));
+  },0);
+  return prod/self.tokenInterval;*/
+};
+
+TokenNetwork.prototype.incrementLearningRate = function () {
+  var self = this;
+  var zeros = 0;
+  var tmp = String(self.learningRate).split('.');
+
+  if (tmp[1]) {
+    zeros = tmp[1].length;
+  }
+
+  self.learningRate = 1 / Math.pow(10, zeros + 1);
+  return self;
 };
 
 function initialize(self) {
   var tokenMaxLength = null;
   var tokens = null;
+  var tokensWeights = null;
   var characters = [];
-  var learningRate = 0.001;
+  var learningRate = 0.1;
+  var loss = null;
   var letterSeparators = [' '];
   var paragraphSeparators = ['\n'];
   var tokenSeparators = ['.', ',', ';', '!', '\'', '(', ')', ':', '?'];
   var data = [];
   var tokenInterval = null;
+  var lineInterval = null;
   var units = null;
   var model = null;
+  var batchSize = 128;
 
   var reset = function reset() {
     tokens = null;
+    tokensWeights = null;
     tokenMaxLength = null;
     units = null;
     tokenInterval = null;
+    lineInterval = null;
   };
 
   Object.defineProperty(self, 'tokenMaxLength', {
@@ -277,6 +372,21 @@ function initialize(self) {
       }
     }
   });
+  Object.defineProperty(self, 'tokensWeights', {
+    get: function get() {
+      if (tokensWeights === null) {
+        var _self = this;
+
+        tokensWeights = [];
+
+        _self.tokens.forEach(function (token) {
+          tokensWeights[token] = _self.getTokenWeight(token);
+        });
+      }
+
+      return tokensWeights;
+    }
+  });
   Object.defineProperty(self, 'characters', {
     get: function get() {
       return characters;
@@ -298,7 +408,7 @@ function initialize(self) {
       return learningRate;
     },
     set: function set(lr) {
-      learningRate = Math.abs(lr);
+      learningRate = lr;
     }
   });
   Object.defineProperty(self, 'letterSeparators', {
@@ -331,25 +441,30 @@ function initialize(self) {
   Object.defineProperty(self, 'data', {
     get: function get() {
       return data;
+    },
+    set: function set(d) {
+      data = d;
+    }
+  });
+  Object.defineProperty(self, 'batchSize', {
+    get: function get() {
+      return batchSize;
+    },
+    set: function set(b) {
+      batchSize = Math.max(b, 2);
     }
   });
   Object.defineProperty(self, 'trainingData', {
     get: function get() {
       var trainingData = [];
-      var units = self.units;
-      data.forEach(function (phrs) {
-        trainingData = trainingData.concat(phrs.map(function (tks) {
-          tks = tks.map(function (t) {
-            return self.getTokenCode(t);
-          });
+      var b = Math.min(batchSize, data.length);
 
-          while (tks.length < units) {
-            tks.push(-1);
-          }
+      for (var i = 0; i < data.length - batchSize; i++) {
+        var sa = i;
+        var sb = i + 1;
+        trainingData.push([self.lineTo3d(data.slice(sa, sa + batchSize)), self.lineTo3d(data.slice(sb, sb + batchSize))]);
+      }
 
-          return tks;
-        }));
-      });
       return trainingData;
     }
   });
@@ -360,6 +475,21 @@ function initialize(self) {
       }
 
       return tokenInterval;
+    }
+  });
+  Object.defineProperty(self, 'lineInterval', {
+    get: function get() {
+      if (lineInterval === null) {
+        var length = self.paragraphs.length;
+        var count = 2;
+
+        do {
+          lineInterval = Math.pow(2, count);
+          count++;
+        } while (lineInterval < length);
+      }
+
+      return lineInterval;
     }
   });
   Object.defineProperty(self, 'maxParagraphLength', {
@@ -390,25 +520,43 @@ function initialize(self) {
   Object.defineProperty(self, 'model', {
     get: function get() {
       if (model === null) {
-        var _units = self.units;
-
-        var _model = tf.sequential();
-
-        _model.addLayer(tf.layers.dense({
-          units: _units,
-          inputShape: [1, 2]
+        var m = tf.sequential();
+        var rnn = tf.layers.simpleRNN({
+          units: self.batchSize,
+          returnSequences: true,
+          activation: 'linear'
+        });
+        var inputLayer = tf.input({
+          shape: [self.batchSize, 1]
+        });
+        rnn.apply(inputLayer);
+        m.add(rnn);
+        m.add(tf.layers.dense({
+          units: 1,
+          inputShape: [self.batchSize, self.batchSize],
+          activation: 'linear'
         }));
-
-        _model.compile({
-          loss: 'meanSquaredError',
+        m.compile({
+          loss: tf.losses.meanSquaredError,
           optimizer: tf.train.sgd(self.learningRate)
         });
+        model = m;
       }
 
       return model;
     },
     set: function set(m) {
       model = m;
+    }
+  });
+  Object.defineProperty(self, 'loss', {
+    set: function set(l) {
+      if (!isNaN(l)) {
+        loss = l;
+      }
+    },
+    get: function get() {
+      return loss;
     }
   });
 }

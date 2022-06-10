@@ -1,5 +1,5 @@
 function cleanWord(word){
-    return word.trim().split('').filter((chr) => chr.length > 0).join('');
+    return [...word.trim()].filter((chr) => chr.length > 0).join('');
 }
 
 function cleanLine(text){
@@ -17,7 +17,7 @@ function cleanText(text){
 }
 
 function charcodesFromText(text){
-    return text.split('').map((c) => c.charCodeAt(0));
+    return   [...text].map((c) => c.charCodeAt(0));
 }
 
 function textFromCharcodes(charcodes){
