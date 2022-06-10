@@ -22,7 +22,9 @@ TokenNetwork.prototype.loadText = function(text){
     let self = this;
     text = TextUtils.cleanText(text);
     self.characters = self.characters.concat(TextUtils.charactersFromText(text));
-    self.data = TextUtils.charcodesFromText(text);
+    self.data = TextUtils.split(text,self.paragraphSeparators,true).map(function(paragraph){
+        return TextUtils.split(paragraph,self.tokenSeparators.concat(self.letterSeparators),true);
+    });
     self.tokens = null;
     return this;
 };
@@ -30,7 +32,17 @@ TokenNetwork.prototype.loadText = function(text){
 TokenNetwork.prototype.lineTo3d = function(l){
     let self = this;
     let line = [...l];
-    return tf.tensor(line,[1,line.length,1]).arraySync()[0];
+    let units = self.units;
+    while(line.length < units){
+        line.push(' ');
+    }
+    line = self.encodeLine(line);
+    return tf.tensor(line,[1,self.units,1]).arraySync()[0];
+};
+
+TokenNetwork.prototype.encodeLine = function(l){
+    let self = this;
+    return l.map((t) => self.getTokenWeight(t));
 };
 
 
@@ -40,7 +52,7 @@ TokenNetwork.prototype.train = async function(epochs,step){
     let x = [];
     let y = [];
 
-    for(let i = 0; i < trainingData.length && i < 10; i++){
+    for(let i = 0; i < trainingData.length; i++){
         x.push(trainingData[i][0]);
         y.push(trainingData[i][1]);
     }
@@ -77,14 +89,7 @@ TokenNetwork.prototype.train = async function(epochs,step){
 };
 
 TokenNetwork.prototype.predict = function(text){
-    let self = this;
-    let batchSize = self.batchSize;
-    text = text.substring(0,batchSize);
-    text = text.padEnd(batchSize, ' ');
-    let input = TextUtils.charcodesFromText(text);
-    let model = self.model;
-    let predict = model.predict( tf.tensor([self.lineTo3d(input)])).flatten().round().arraySync();
-    return TextUtils.textFromCharcodes(predict);
+  
 };
 
 TokenNetwork.prototype.toJSON = function(){
@@ -172,6 +177,7 @@ TokenNetwork.prototype.getNearestToken = function(weight){
 };
 
 TokenNetwork.prototype.getTokenWeight = function(token){
+    let self = this;
     return this.tokens.indexOf(token)+1;
     /*
     let self = this;
@@ -211,7 +217,6 @@ function initialize(self){
     let lineInterval = null;
     let units = null;
     let model = null;
-    let batchSize = 128;
 
     let reset = function(){
         tokens = null;
@@ -232,31 +237,13 @@ function initialize(self){
         }
     });
 
-    Object.defineProperty(self,'paragraphs',{
-        get:function(){
-            let tmp = [];
-            data.forEach(function(paragraphs){
-                tmp = tmp.concat(paragraphs);
-            });
-            return tmp;
-        }
-    });
-
     Object.defineProperty(self,'tokens',{
         get:function(){
             if(tokens === null){
-                tokens = [];
-                self.paragraphs.forEach(function(paragraph){
-                    paragraph.forEach(function(token){
-                        if(tokens.indexOf(token) === -1){
-                            tokens.push(token);
-                        }
-                    });
-                });
-                tokens = tokens.sort(function(a,b){
+                tokens = [...new Set(data.reduce((a,b) => a.concat(b)))].sort(function(a,b){
                     let diff =  a.length - b.length;
                     if(diff === 0){
-                        diff = a.localeCompare(b);
+                        diff = a.toString().localeCompare(b.toString());
                     }
                     return diff;
                 });
@@ -348,27 +335,19 @@ function initialize(self){
         }
     });
 
-    Object.defineProperty(self,'batchSize',{
-        get:function(){
-            return batchSize;
-        },
-        set:function(b){
-            batchSize = Math.max(b,2);            
-        }
-    });
 
     Object.defineProperty(self,'trainingData',{
         get:function(){
             let trainingData = [];
-            let b = Math.min(batchSize,data.length);
-            for(let i = 0; i < data.length-batchSize; i++){
-                let sa = i;
-                let sb = i+1;
+            for(let i = 0; i < data.length-1;i++){
+                let input = self.lineTo3d(data[i],0);
+                let output = self.lineTo3d(data[i+1]);
                 trainingData.push([
-                    self.lineTo3d(data.slice(sa,sa+batchSize)),
-                    self.lineTo3d(data.slice(sb,sb+batchSize))
+                    input,
+                    output
                 ]);
             }
+
             return trainingData;
         }
     });
@@ -399,7 +378,18 @@ function initialize(self){
 
     Object.defineProperty(self,'maxParagraphLength',{
         get:function(){
-            return self.paragraphs.reduce((a,b) => Math.max(a,b.length),0);
+            let max = 0;
+            let sum = 0;
+            for(let i = 0; i < data.length;i++){
+                if(data[i] === "\n"){
+                    sum = 0;
+                }
+                else{
+                    sum++;
+                }
+                max = Math.max(max,sum);
+            }
+            return max;
         }
     });
 
@@ -423,13 +413,22 @@ function initialize(self){
         get:function(){
             if(model === null){
                 let m = tf.sequential();
-                let rnn = tf.layers.simpleRNN({units:self.batchSize,returnSequences:true,activation:'linear'});
-                let inputLayer = tf.input({
-                    shape:[self.batchSize,1]
+                let units = self.units;
+                let rnn = tf.layers.simpleRNN({
+                    units:1,
+                    returnSequences:true,
+                    activation:'linear',
+                    inputShape:[
+                        units,
+                        1
+                    ]
                 });
-                rnn.apply(inputLayer);
                 m.add(rnn);
-                m.add(tf.layers.dense({units:1,inputShape:[self.batchSize,self.batchSize],activation:'linear'}));
+                m.add(tf.layers.dense({
+                    units:1,
+                    inputShape:[units,1],
+                    activation:'linear'
+                }));
                 m.compile({
                     loss:tf.losses.meanSquaredError,
                     optimizer:tf.train.sgd(self.learningRate)        

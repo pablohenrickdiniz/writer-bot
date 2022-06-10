@@ -10,7 +10,7 @@ async function init(){
     await network.load('./models/resumo');
     network.loadTextFile('./data/resumo.txt');
     while(true){
-        fs.writeFileSync('resumo.txt',network.predict('A terra era sem forma e va'));
+      //  fs.writeFileSync('resumo.txt',network.predict('A terra era sem forma e va'));
         await network.train(100,function(logs,epochs,loss){
             let log = logs.toString().padStart(epochs.toString().length,'0')+'/'+epochs+' - treinando (loss:'+loss+')';
             console.log(log);

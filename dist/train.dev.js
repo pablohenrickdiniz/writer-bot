@@ -25,23 +25,22 @@ function init() {
 
         case 4:
           if (!true) {
-            _context.next = 11;
+            _context.next = 10;
             break;
           }
 
-          fs.writeFileSync('resumo.txt', network.predict('A terra era sem forma e va'));
-          _context.next = 8;
+          _context.next = 7;
           return regeneratorRuntime.awrap(network.train(100, function (logs, epochs, loss) {
             var log = logs.toString().padStart(epochs.toString().length, '0') + '/' + epochs + ' - treinando (loss:' + loss + ')';
             console.log(log);
           }));
 
-        case 8:
+        case 7:
           network.save('./models/resumo');
           _context.next = 4;
           break;
 
-        case 11:
+        case 10:
         case "end":
           return _context.stop();
       }
