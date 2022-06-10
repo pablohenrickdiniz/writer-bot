@@ -81,7 +81,6 @@ TokenNetwork.prototype.train = function _callee(epochs, step) {
                     ty = tf.tensor(y);
                     _context.next = 5;
                     return regeneratorRuntime.awrap(model.fit(tx, ty, {
-                      testingData: [tx, ty],
                       epochs: epochs,
                       //  batchSize: 32,
                       verbose: 0,

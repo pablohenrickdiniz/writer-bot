@@ -53,7 +53,6 @@ TokenNetwork.prototype.train = async function(epochs,step){
         let ty = tf.tensor(y);
 
         await model.fit(tx,ty,{
-            testingData:[tx,ty],
             epochs:epochs,
           //  batchSize: 32,
             verbose:0,
