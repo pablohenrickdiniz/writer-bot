@@ -17,6 +17,7 @@ function initialize(self,options){
     let encoder;
     let dataset = null;
     let sequences = null;
+    let batchSize = options.batchSize || 64;
     
     switch(options.type){
         case 'tokenizer':
@@ -72,6 +73,12 @@ function initialize(self,options){
         }
     });
 
+    Object.defineProperty(self,'encoderSize',{
+        get:function(){
+            return encoder.size;
+        }
+    });
+
     Object.defineProperty(self,'dataset',{
         get:function(){ 
             if(dataset === null){
@@ -96,9 +103,29 @@ function initialize(self,options){
                         arr.slice(0,arr.length-1),
                         arr.slice(1,arr.length)
                     ];
+                }).batch(batchSize).map(function(t){
+                    let array = t.arraySync();
+                    let xBuffer = tf.buffer([batchSize,seqLength,self.encoderSize]);
+                    let yBuffer = tf.buffer([batchSize,self.encoderSize]);
+                    for(let i = 0; i < batchSize; i++) {
+                        for(let j = 0; j < seqLength; j++) {
+                            xBuffer.set(1,i,j,array[i][0][j]);
+                        }
+                        yBuffer.set(1,i,array[i][1][seqLength-1]);
+                    }
+                    return {
+                        xs:xBuffer.toTensor(),
+                        ys:yBuffer.toTensor()
+                    };
                 });
             }
             return sequences;
+        }
+    });
+
+    Object.defineProperty(self,'batchSize',{
+        get:function(){
+            return batchSize;
         }
     });
 }
