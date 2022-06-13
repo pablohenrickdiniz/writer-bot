@@ -12,16 +12,25 @@ function initialize(self,sep){
     sep = [...sep || [' ','\n','.',',',';','!','\'','(',')',':','?']];
     let items = [];
 
+    /** Encode text*/
     let encode = function(text){
         return split(text,sep).map((c) => items.indexOf(c));
     };
 
+    /** Decode text */
     let decode = function(indexes){
         return indexes.map((i) => items[i]?items[i]:"").join('');
     };
 
+    /** Load unique tokens from text*/
     let loadText = function(text){
         items = [...new Set(items.concat(split(text,sep)))].sort();
+        return self;
+    };
+
+    let clear = function(){
+        items = [];
+        return self;
     };
     
     Object.defineProperty(self,'items',{
@@ -52,6 +61,10 @@ function initialize(self,sep){
 
     Object.defineProperty(self,'loadText',{
         get:function(){return loadText;}
+    });
+
+    Object.defineProperty(self,'clear',{
+        get:function(){return clear;}
     });
 }
 

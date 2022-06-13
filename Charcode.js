@@ -1,4 +1,4 @@
-function Vocab(text){
+function Charcode(text){
     let self = this;
     initialize(self);
     if(text){
@@ -9,14 +9,15 @@ function Vocab(text){
 function initialize(self){
     let items = [];
 
+
     /** Encode text*/
     let encode = function(text){
-        return text.split('').map((c) => items.indexOf(c));
+        return text.split('').map((c) => c.charCodeAt(0));
     };
 
     /** Decode text */
     let decode =  function(indexes){
-        return indexes.map((i) => items[i]?items[i]:" ").join('');
+        return indexes.map((i) => String.fromCharCode(i)).join('');
     };
 
     /** Load unique characters from text*/
@@ -59,4 +60,4 @@ function initialize(self){
     });
 }
 
-module.exports = Vocab;
+module.exports = Charcode;
