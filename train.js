@@ -1,18 +1,23 @@
 const tf = require('@tensorflow/tfjs-node-gpu');
+const fs = require('fs');
 (async function(){
     const Model = require('./Model');
     let model = new Model({
         encoder:'vocab'
     });
     model.loadTextFile('./data/biblia.txt');
-  //  model.model.summary();
     let epochs = 100;
     await model.train(epochs,async function(index,loss){
         console.log(index+'/'+epochs+' - treinando, taxa de erro:'+loss.toFixed(8));
-        let text = await model.generate(10000);
-        fs.writeFileSync('biblia-gerada.txt',text);
+        let res = fs.createWriteStream('biblia-gerada.txt',{
+            encoding:'utf-8',
+            mode:'w'
+        });
+        await model.generate(1000,function(t){
+            res.write(t);
+        });
+        res.close();
     });
-
     /*
     await model.sequencializer.sequences.take(1).forEachAsync(function(s){
         console.log(s);

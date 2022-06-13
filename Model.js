@@ -35,10 +35,10 @@ function initialize(self,options){
         });
    };
 
-   let generate = async function(length){
+   let generate = async function(length,callback){
        let text = "";
        let model = self.model;
-       let indexes = await self.sequencializer.dataset.batch(seqLength).map((t) => t.arraySync()).take(1).toArray()[0];
+       let indexes = (await self.sequencializer.dataset.batch(seqLength).map((t) => t.arraySync()).take(1).toArray())[0];
        do{
             let xBuffer = tf.buffer([1,seqLength,self.sequencializer.encoderSize]);
             for(let i = 0;i < seqLength;i++){
@@ -50,10 +50,12 @@ function initialize(self,options){
             let index = sample(output,0.6);
             let chr = sequencializer.decodeIndex(index);
             text += chr;
+            if(callback){
+                callback(chr);
+            }
             indexes.shift();
             indexes.push(index);
        }while(text.length < length);
-      
        return text;
    };
 

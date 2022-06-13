@@ -104,7 +104,7 @@ function initialize(self,options){
 
     Object.defineProperty(self,'randomSequences',{
         get:function(){
-            return self.sequences;
+            return self.sequences.shuffle(1024);
         }
     });
 
@@ -122,7 +122,7 @@ function initialize(self,options){
                             arr.slice(0,arr.length-1),
                             arr.slice(1,arr.length)
                         ];
-                    }).batch(batchSize).map(function(t){
+                    }).batch(batchSize).map(function(t,b){
                         let array = t.arraySync();
                         if(array.length < batchSize){
                             return null;
@@ -143,8 +143,7 @@ function initialize(self,options){
                     })
                     .filter(function(t){
                         return t !== null;
-                    })
-                    .shuffle(1024);
+                    });
             }
             return sequences;
         }
