@@ -50,7 +50,7 @@ function initialize(self,options){
             let index = sample(output,0.6);
             let chr = sequencializer.decodeIndex(index);
             text += chr;
-            indexes = indexes.slice(1);
+            indexes.shift();
             indexes.push(index);
        }while(text.length < length);
       
