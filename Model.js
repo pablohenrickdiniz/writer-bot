@@ -35,14 +35,10 @@ function initialize(self,options){
         });
    };
 
-   let generate = function(length){
+   let generate = async function(length){
        let text = "";
        let model = self.model;
-       let indexes = [];
-       let spaceIndex = self.sequencializer.decodeItem(' ');
-       for(let i = 0; i < seqLength;i++){
-           indexes.push(spaceIndex);        
-       }
+       let indexes = await self.sequencializer.dataset.batch(seqLength).map((t) => t.arraySync()).take(1).toArray()[0];
        do{
             let xBuffer = tf.buffer([1,seqLength,self.sequencializer.encoderSize]);
             for(let i = 0;i < seqLength;i++){
@@ -63,10 +59,12 @@ function initialize(self,options){
 
    let loadTextFile = function(filename){
        self.sequencializer.loadTextFile(filename);
+       return self;
    };
 
    let loadText= function(text){
         self.sequencializer.loadText(text);
+        return self;
     };
 
    Object.defineProperty(self,'seqLength',{
@@ -89,7 +87,7 @@ function initialize(self,options){
                 }
                 model.add( tf.layers.dense({units: seq.encoderSize, activation: 'softmax'}));
                 model.compile({
-                    optimizer: tf.train.rmsprop(0.001), 
+                    optimizer: tf.train.rmsprop(0.01), 
                     loss: 'categoricalCrossentropy'
                 });
             }
