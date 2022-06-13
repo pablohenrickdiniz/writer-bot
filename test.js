@@ -6,7 +6,12 @@ const tf = require('@tensorflow/tfjs-node-gpu');
     });
     model.loadTextFile('./data/shakespeare.txt');
   //  model.model.summary();
-    await model.train();
+    let epochs = 100;
+    await model.train(epochs,function(index,loss){
+        console.log(index+'/'+epochs+' - treinando, taxa de erro:'+loss.toFixed(8));
+        console.log(model.generate(100));
+    });
+
     /*
     await model.sequencializer.sequences.take(1).forEachAsync(function(s){
         console.log(s);

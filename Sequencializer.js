@@ -49,6 +49,20 @@ function initialize(self,options){
         loadText(fs.readFileSync(filename,{encoding: 'utf-8'}));
     };
 
+    let decodeIndex = function(index){
+        return encoder.items[index]?encoder.items[index]:"";
+    };
+
+    let decodeItem = function(item){
+        let items = encoder.items;
+        for(let i = 0; i < items.length;i++){
+            if(item === items[i]){
+                return i;
+            }
+        }
+        return 0;
+    };
+
     Object.defineProperty(self,'loadText',{
         get:function(){
             return loadText;
@@ -90,34 +104,47 @@ function initialize(self,options){
 
     Object.defineProperty(self,'randomSequences',{
         get:function(){
-            return self.sequences.shuffle(1024);
+            return self.sequences;
         }
     });
 
     Object.defineProperty(self,'sequences',{
         get:function(){
             if(sequences === null){
-                sequences = self.dataset.batch(seqLength+1).map(function(t){
-                    let arr = t.arraySync();
-                    return [
-                        arr.slice(0,arr.length-1),
-                        arr.slice(1,arr.length)
-                    ];
-                }).batch(batchSize).map(function(t){
-                    let array = t.arraySync();
-                    let xBuffer = tf.buffer([batchSize,seqLength,self.encoderSize]);
-                    let yBuffer = tf.buffer([batchSize,self.encoderSize]);
-                    for(let i = 0; i < batchSize; i++) {
-                        for(let j = 0; j < seqLength; j++) {
-                            xBuffer.set(1,i,j,array[i][0][j]);
+                sequences = self.dataset
+                    .batch(seqLength+1)
+                    .filter(function(t){
+                        return t.shape[0] === seqLength+1;
+                    })
+                    .map(function(t){
+                        let arr = t.arraySync();
+                        return [
+                            arr.slice(0,arr.length-1),
+                            arr.slice(1,arr.length)
+                        ];
+                    }).batch(batchSize).map(function(t){
+                        let array = t.arraySync();
+                        if(array.length < batchSize){
+                            return null;
                         }
-                        yBuffer.set(1,i,array[i][1][seqLength-1]);
-                    }
-                    return {
-                        xs:xBuffer.toTensor(),
-                        ys:yBuffer.toTensor()
-                    };
-                });
+                        let xBuffer = tf.buffer([batchSize,seqLength,self.encoderSize]);
+                        let yBuffer = tf.buffer([batchSize,self.encoderSize]);
+                      
+                        for(let i = 0; i < batchSize; i++) {
+                            for(let j = 0; j < seqLength; j++) {
+                                xBuffer.set(1,i,j,array[i][0][j]);
+                            }
+                            yBuffer.set(1,i,array[i][1][seqLength-1]);
+                        }
+                        return {
+                            xs:xBuffer.toTensor(),
+                            ys:yBuffer.toTensor()
+                        }
+                    })
+                    .filter(function(t){
+                        return t !== null;
+                    })
+                    .shuffle(1024);
             }
             return sequences;
         }
@@ -128,6 +155,19 @@ function initialize(self,options){
             return batchSize;
         }
     });
+
+    Object.defineProperty(self,'decodeIndex',{
+        get:function(){
+            return decodeIndex;
+        }
+    });
+
+    Object.defineProperty(self,'decodeItem',{
+        get:function(){
+            return decodeItem;
+        }
+    });
+
 }
 
 

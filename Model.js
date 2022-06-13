@@ -7,6 +7,14 @@ function Model(options){
     initialize(self,options);
 }
 
+function sample(probs, temperature) {
+    return tf.tidy(() => {
+      const logits = tf.div(tf.log(probs), Math.max(temperature, 1e-6));
+      const isNormalized = false;
+      return tf.multinomial(logits, 1, null, isNormalized).dataSync()[0];
+    });
+}
+
 function initialize(self,options){
    options = options || {}; 
    let seqLength = options.seqLength || 100;
@@ -15,14 +23,42 @@ function initialize(self,options){
    let model = null;
    let sequencializer = null;
 
-   let train = async function(epochs){
-        await self.model.fitDataset(self.sequencializer.sequences.take(100),{
-            epochs:epochs || 100
+   let train = async function(epochs,callback){
+        await self.model.fitDataset(self.sequencializer.randomSequences,{
+            epochs:epochs,
+            verbose:0,
+            callbacks:{
+                onEpochEnd:function(epochs,log){
+                    callback(epochs+1,log.loss);
+                }
+            }
         });
    };
 
    let generate = function(length){
-
+       let text = "";
+       let model = self.model;
+       let indexes = [];
+       let spaceIndex = self.sequencializer.decodeItem(' ');
+       for(let i = 0; i < seqLength;i++){
+           indexes.push(spaceIndex);        
+       }
+       do{
+            let xBuffer = tf.buffer([1,seqLength,self.sequencializer.encoderSize]);
+            for(let i = 0;i < seqLength;i++){
+                xBuffer.set(1,0,i,indexes[i]);
+            }
+            let input = xBuffer.toTensor();
+            /** tensor de probabilidades */
+            let output = model.predict(input).squeeze();
+            let index = sample(output,0.6);
+            let chr = sequencializer.decodeIndex(index);
+            text += chr;
+            indexes = indexes.slice(1);
+            indexes.push(index);
+       }while(text.length < length);
+      
+       return text;
    };
 
    let loadTextFile = function(filename){
