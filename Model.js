@@ -24,7 +24,7 @@ function initialize(self,options){
    let units = options.units || 128;
    let model = null;
    let sequencializer = null;
-   let learningRate = 0.001;
+   let learningRate = 0.0001;
 
    let train = async function(epochs,callback){
         await self.model.fitDataset(self.sequencializer.randomSequences,{
