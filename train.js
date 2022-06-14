@@ -1,7 +1,7 @@
 const tf = require('@tensorflow/tfjs-node-gpu');
 const fs = require('fs');
-const modelDir = '/content/drive/MyDrive/ia-projects/writer-bot/models/biblia';
-const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia.txt';
+const modelDir = '/content/drive/MyDrive/ia-projects/writer-bot/models/biblia-tokenizer';
+const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia-tokenizer.txt';
 (async function(){
     const Model = require('./Model');
     let model = new Model({
