@@ -9,10 +9,7 @@ const fs = require('fs');
     let epochs = 100;
     await model.train(epochs,async function(index,loss){
         console.log(index+'/'+epochs+' - treinando, taxa de erro:'+loss.toFixed(8));
-        let res = fs.createWriteStream('biblia-gerada.txt',{
-            encoding:'utf-8',
-            mode:'w'
-        });
+        let res = fs.createWriteStream('biblia-gerada.txt','utf-8');
         await model.generate(1000,function(t){
             res.write(t);
         });
