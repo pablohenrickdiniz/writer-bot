@@ -1,39 +1,22 @@
-function insertBetween(arr,value){
-    let tmp = [];
-    for(let i = 0; i < arr.length;i++){
-        tmp.push(arr[i]);
-        if(i < arr.length - 1){
-            tmp.push(value);
+function split(text,sep){
+    if(sep.constructor !== [].constructor){
+        sep = [sep];
+    }
+    let pieces = [];
+    for(let i = 0; i < text.length;i++){
+        let chr = text.charAt(i);
+        if(sep.indexOf(chr) !== -1){
+            let piece = text.substring(0,i);
+            pieces.push(piece);
+            pieces.push(chr);
+            text = text.substring(i+1);
+            i = 0;
         }
     }
-    return tmp;
-}
-
-function split(text,separator){
-    separator = separator || '';
-    if(separator.constructor != [].constructor){
-        separator = [separator];
+    if(text.length > 0){
+        pieces.push(text);
     }
-
-    for(let i = 0; i < separator.length;i++){
-        let sep = separator[i];
-        if(typeof text === 'string'){
-            text = text.split(sep);
-            text = insertBetween(text,sep);
-            text = text.filter((t) => t.length > 0);
-        }
-        else{
-            let tmp = [];
-            for(let j = 0; j < text.length;j++){
-                let split = text[j].split(sep);
-                split = insertBetween(split,sep);
-                tmp = tmp.concat(split);
-            }
-            text = tmp.filter((t) => t.length > 0);
-        }
-    }
-  
-    return text;
+    return pieces;
 }
 
 let TextUtils = {

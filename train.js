@@ -16,9 +16,11 @@ const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia.
     }
 
     if(!loaded){
+        console.log('loading text...');
         model.loadTextFile('./data/biblia.txt');
     }
     let epochs = 100;
+    console.log('training...');
     await model.train(epochs,async function(index,loss){
         await model.save(modelDir);
         console.log(index+'/'+epochs+' - treinando, taxa de erro:'+loss.toFixed(8));
