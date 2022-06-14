@@ -13,21 +13,22 @@ function Sequencializer(options){
 function initialize(self,options){
     options = options || {};
     let seqLength = options.seqLength || 100;
-    let text = "";
+    let text = options.text || "";
     let encoder;
     let dataset = null;
     let sequences = null;
     let batchSize = options.batchSize || 64;
+    let type = options.type || 'vocab';
     
-    switch(options.type){
+    switch(type){
         case 'tokenizer':
-            encoder = new Tokenizer();
+            encoder = new Tokenizer(options.encoder);
             break;
         case 'charcode':
-            encoder = new Charcode();
+            encoder = new Charcode(options.encoder);
             break;
         default:
-            encoder = new Vocab();
+            encoder = new Vocab(options.encoder);
             break;
     }
 
@@ -61,6 +62,16 @@ function initialize(self,options){
             }
         }
         return 0;
+    };
+
+    let toJSON = function(){
+        return {
+            seqLength:seqLength,
+            text:text,
+            batchSize:batchSize,
+            encoder:encoder,
+            type:type
+        };
     };
 
     Object.defineProperty(self,'loadText',{
@@ -167,6 +178,11 @@ function initialize(self,options){
         }
     });
 
+    Object.defineProperty(self,'toJSON',{
+        get:function(){
+            return toJSON;
+        }
+    });
 }
 
 

@@ -1,16 +1,14 @@
 let split = require('./TextUtils').split;
 
-function Tokenizer(text,sep){
+function Tokenizer(options){
     let self = this;
-    initialize(self,sep);
-    if(text){
-        self.loadText(text);
-    }
+    initialize(self,options);
 }
 
-function initialize(self,sep){
-    sep = [...sep || [' ','\n','.',',',';','!','\'','(',')',':','?']];
-    let items = [];
+function initialize(self,options){
+    options = options || {};
+    sep = [...options.sep || [' ','\n','.',',',';','!','\'','(',')',':','?']];
+    let items = options.items || [];
 
     /** Encode text*/
     let encode = function(text){
@@ -31,6 +29,13 @@ function initialize(self,sep){
     let clear = function(){
         items = [];
         return self;
+    };
+
+    let toJSON = function(){
+        return {
+            items:items,
+            sep:sep
+        };
     };
     
     Object.defineProperty(self,'items',{
@@ -65,6 +70,10 @@ function initialize(self,sep){
 
     Object.defineProperty(self,'clear',{
         get:function(){return clear;}
+    });
+
+    Object.defineProperty(self,'toJSON',{
+        get:function(){ return toJSON;}
     });
 }
 

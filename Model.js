@@ -1,5 +1,7 @@
 
 const tf = require('@tensorflow/tfjs-node-gpu');
+const fs = require('fs');
+const path = require('path');
 const Sequencializer = require('./Sequencializer');
 
 function Model(options){
@@ -22,6 +24,7 @@ function initialize(self,options){
    let units = options.units || 128;
    let model = null;
    let sequencializer = null;
+   let learningRate = 0.1;
 
    let train = async function(epochs,callback){
         await self.model.fitDataset(self.sequencializer.randomSequences,{
@@ -36,9 +39,13 @@ function initialize(self,options){
    };
 
    let generate = async function(length,callback){
-       let text = "";
        let model = self.model;
        let indexes = (await self.sequencializer.dataset.batch(seqLength).map((t) => t.arraySync()).take(1).toArray())[0];
+       let text = indexes.map((i) => self.sequencializer.decodeIndex(i)).join("");
+       if(callback){
+          callback(text);
+       }
+       let count = 0;
        do{
             let xBuffer = tf.buffer([1,seqLength,self.sequencializer.encoderSize]);
             for(let i = 0;i < seqLength;i++){
@@ -55,7 +62,8 @@ function initialize(self,options){
             }
             indexes.shift();
             indexes.push(index);
-       }while(text.length < length);
+            count++;
+       }while(count < length);
        return text;
    };
 
@@ -67,6 +75,68 @@ function initialize(self,options){
    let loadText= function(text){
         self.sequencializer.loadText(text);
         return self;
+    };
+
+    let save = async function(outputdir){
+        let model = self.model;
+        if(!fs.existsSync(outputdir)){
+            fs.mkdirSync(outputdir,{
+                recursive:true
+            });
+        }
+        await model.save('file://'+outputdir);
+        fs.writeFileSync(path.join(outputdir,'data.json'),JSON.stringify(this,null,4));
+    };
+
+    let load = async function(outputdir){
+        if(
+            !fs.existsSync(outputdir)
+        ){
+            return false;
+        }
+       
+        let dataFile = path.join(outputdir,'data.json')
+
+        if(!fs.existsSync(dataFile)){
+           return false;
+        }
+
+        let modelFile = path.join(outputdir,'model.json');
+
+        if(!fs.existsSync(modelFile)){
+           return false;
+        }
+        model = await tf.loadLayersModel('file://'+modelFile);
+        model.compile({
+            optimizer: tf.train.rmsprop(learningRate), 
+            loss: 'categoricalCrossentropy'
+        });
+        let tmp = JSON.parse(fs.readFileSync(dataFile,{encoding:'utf-8'}));
+        Object.keys(tmp).forEach(function(k){
+            switch(k){
+                case 'learningRate':
+                    learningRate = tmp[k];
+                    break;
+                case 'hiddenLayers':
+                    hiddenLayers = tmp[k];
+                    break;
+                case 'units':
+                    units = tmp[k];
+                    break;
+                case 'sequencializer':
+                    sequencializer = new Sequencializer(tmp[k]);
+                    break;
+            }
+        });
+    };
+
+    let toJSON = function(){
+        return {
+            learningRate:self.learningRate,
+            sequencializer:self.sequencializer,
+            hiddenLayers:hiddenLayers,
+            units:units
+        };
     };
 
    Object.defineProperty(self,'seqLength',{
@@ -89,7 +159,7 @@ function initialize(self,options){
                 }
                 model.add( tf.layers.dense({units: seq.encoderSize, activation: 'softmax'}));
                 model.compile({
-                    optimizer: tf.train.rmsprop(0.01), 
+                    optimizer: tf.train.rmsprop(learningRate), 
                     loss: 'categoricalCrossentropy'
                 });
             }
@@ -130,6 +200,30 @@ function initialize(self,options){
     Object.defineProperty(self,'loadTextFile',{
         get:function(){
             return loadTextFile;
+        }
+    });
+
+    Object.defineProperty(self,'save',{
+        get:function(){
+            return save;
+        }
+    });
+
+    Object.defineProperty(self,'load',{
+        get:function(){
+            return load;
+        }
+    });
+
+    Object.defineProperty(self,'learningRate',{
+        get:function(){
+            return learningRate;
+        }
+    });
+
+    Object.defineProperty(self,'toJSON',{
+        get:function(){
+            return toJSON;
         }
     });
 }
