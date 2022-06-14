@@ -24,7 +24,7 @@ const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia.
         await model.save(modelDir);
         console.log(index+'/'+epochs+' - treinando, taxa de erro:'+loss.toFixed(8));
         let res = fs.createWriteStream(outputFile,'utf-8');
-        await model.generate(1000,function(t){
+        await model.generate(8192,function(t){
             res.write(t);
         });
         res.close();
