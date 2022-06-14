@@ -29,7 +29,6 @@ function initialize(self,options){
    let train = async function(epochs,callback){
         await self.model.fitDataset(self.sequencializer.randomSequences,{
             epochs:epochs,
-            verbose:0,
             callbacks:{
                 onEpochEnd:function(epochs,log){
                     callback(epochs+1,log.loss);
