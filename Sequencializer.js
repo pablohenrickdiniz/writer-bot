@@ -4,6 +4,7 @@ const Charcode = require('./Charcode');
 
 const fs = require('fs');
 const tf = require('@tensorflow/tfjs-node-gpu');
+const { encode } = require('punycode');
 
 function Sequencializer(options){
     let self = this;
@@ -12,7 +13,7 @@ function Sequencializer(options){
 
 function initialize(self,options){
     options = options || {};
-    let seqLength = options.seqLength || 100;
+    let seqLength = options.seqLength || 128;
     let text = options.text || "";
     let encoder;
     let dataset = null;
@@ -181,6 +182,12 @@ function initialize(self,options){
     Object.defineProperty(self,'toJSON',{
         get:function(){
             return toJSON;
+        }
+    });
+
+    Object.defineProperty(self,'encoder',{
+        get:function(){
+            return encoder;
         }
     });
 }

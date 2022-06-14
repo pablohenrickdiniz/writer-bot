@@ -19,12 +19,12 @@ function sample(probs, temperature) {
 
 function initialize(self,options){
    options = options || {}; 
-   let seqLength = options.seqLength || 100;
+   let seqLength = options.seqLength || 128;
    let hiddenLayers = options.hiddenLayers || 1;
    let units = options.units || 128;
    let model = null;
    let sequencializer = null;
-   let learningRate = 0.001;
+   let learningRate = 0.01;
 
    let train = async function(epochs,callback){
         await self.model.fitDataset(self.sequencializer.randomSequences,{

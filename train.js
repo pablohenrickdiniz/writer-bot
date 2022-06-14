@@ -1,11 +1,11 @@
 const tf = require('@tensorflow/tfjs-node-gpu');
 const fs = require('fs');
-const modelDir = '/content/drive/MyDrive/ia-projects/writer-bot/models/biblia-tokenizer';
-const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia-tokenizer.txt';
+const modelDir = '/content/drive/MyDrive/ia-projects/writer-bot/models/biblia';
+const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia.txt';
 (async function(){
     const Model = require('./Model');
     let model = new Model({
-        encoder:'tokenizer'
+        encoder:'vocab'
     });
     let loaded = false;
     try{
@@ -16,12 +16,10 @@ const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia-
     }
 
     if(!loaded){
-        console.log('loading text...');
         model.loadTextFile('./data/biblia.txt');
     }
     
     let epochs = 100;
-    console.log('training...');
     await model.train(epochs,async function(index,loss){
         await model.save(modelDir);
         console.log(index+'/'+epochs+' - treinando, taxa de erro:'+loss.toFixed(8));
@@ -31,10 +29,4 @@ const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia-
         });
         res.close();
     });
-    /*
-    await model.sequencializer.sequences.take(1).forEachAsync(function(s){
-        console.log(s);
-    });*/
-  //  let xBuffer = tf.buffer([64,100,66]);
-  //  console.log(xBuffer.toTensor());
 })();
