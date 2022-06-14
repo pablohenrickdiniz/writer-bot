@@ -10915,7 +10915,7 @@ I CRÔNICAS
 18 Sua irmã Hamolequete teve Isode, Abiezer e Maclá.
 19 E foram os filhos de Semida: Aiã, Siquém, Líqui e Anião. que
 20 Os filhos de Efraim: Sutela, de quem foi filho Berede, de quem foi filho Taate, de quem foi filho Eleadá, de quem foi filho Taate,
-2l de quem foi filho Zabade, de quem foi filho Sutela; e Ezer e Eleade, aos quais os homens de Tate, naturais da terra, mataram, por terem descido para tomar o seu gado.
+21 de quem foi filho Zabade, de quem foi filho Sutela; e Ezer e Eleade, aos quais os homens de Tate, naturais da terra, mataram, por terem descido para tomar o seu gado.
 22 E Efraim, seu pai, os pranteou por muitos dias, pelo que seus irmãos vieram para o consolar.
 23 Depois juntou-se com sua mulher, e concebendo ela, teve um filho, ao qual ele deu o nome de Berias, porque as coisas iam mal na sua casa.
 24 Sua filha foi Seerá, que edificou a Bete-Horom, a baixa e a alta, como também a Uzem-Seerá.
@@ -14804,7 +14804,7 @@ SALMOS
 5 Odeio o ajuntamento de malfeitores; não me sentarei com os ímpios.
 6 Lavo as minhas mãos na inocência; e assim, ó Senhor, me acerco do teu altar,
 7 para fazer ouvir a voz de louvor, e contar todas as tuas maravilhas.
-8Senhor, eu amo o recinto da tua casa e o lugar onde permanece a tua glória.
+8 Senhor, eu amo o recinto da tua casa e o lugar onde permanece a tua glória.
 9 Não colhas a minha alma com a dos pecadores, nem a minha vida a dos homens sanguinolentos,
 10 em cujas mãos há malefício, e cuja destra está cheia de subornos.
 11 Quanto a mim, porém, ando na minha integridade; resgata-me e tem compaixão de mim.

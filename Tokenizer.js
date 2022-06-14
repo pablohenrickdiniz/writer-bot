@@ -7,7 +7,7 @@ function Tokenizer(options){
 
 function initialize(self,options){
     options = options || {};
-    sep = [...options.sep || [' ','\n','.',',',';','!','\'','(',')',':','?']];
+    sep = [...options.sep || [' ','\t','\r','\n','.',',',';','!','\'','(',')',':','?','-']];
     let items = options.items || [];
 
     /** Encode text*/
