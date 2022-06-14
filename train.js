@@ -1,7 +1,7 @@
 const tf = require('@tensorflow/tfjs-node-gpu');
 const fs = require('fs');
-const modelDir = '/content/drive/MyDrive/ia-projects/writer-bot/models/shakespeare';
-const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/shakespeare.txt';
+const modelDir = '/content/drive/MyDrive/ia-projects/writer-bot/models/biblia';
+const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia.txt';
 (async function(){
     const Model = require('./Model');
     let model = new Model({
@@ -16,11 +16,13 @@ const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/shakesp
     }
 
     if(!loaded){
-        model.loadTextFile('./data/shakespeare.txt');
+        model.loadTextFile('./data/biblia.txt');
     }
     
     let epochs = 100;
     await model.train(epochs,async function(index,loss){
         await model.save(modelDir);
+        let result = await model.generate(1024);
+        fs.writeFileSync(outputFile);
     });
 })();
