@@ -1,4 +1,3 @@
-const tf = require('@tensorflow/tfjs-node-gpu');
 const fs = require('fs');
 const modelDir = '/content/drive/MyDrive/ia-projects/writer-bot/models/biblia';
 const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia.txt';
@@ -23,6 +22,6 @@ const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia.
     await model.train(epochs,async function(index,loss){
         await model.save(modelDir);
         let result = await model.generate(1024);
-        fs.writeFileSync(outputFile);
+        fs.writeFileSync(outputFile,result);
     });
 })();
