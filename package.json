@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "@tensorflow/tfjs-node-gpu": "^3.18.0",
+    "execution-time": "^1.4.1",
     "n-readlines": "^1.0.1"
   }
 }

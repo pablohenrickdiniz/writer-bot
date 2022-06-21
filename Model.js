@@ -3,6 +3,7 @@ const tf = require('@tensorflow/tfjs-node-gpu');
 const fs = require('fs');
 const path = require('path');
 const Sequencializer = require('./Sequencializer');
+const perf = require('execution-time')();
 
 function Model(options){
     let self = this;
@@ -21,14 +22,15 @@ function initialize(self,options){
    options = options || {}; 
    let seqLength = options.seqLength || 128;
    let hiddenLayers = options.hiddenLayers || 1;
-   let units = options.units || 128;
+   let units = options.units || 16;
    let model = null;
    let sequencializer = null;
    let learningRate = 0.001;
 
    let train = async function(epochs,callback){
-        await self.model.fitDataset(self.sequencializer.randomSequences,{
+        await self.model.fitDataset(self.sequencializer.randomTrainingSequences,{
             epochs:epochs,
+            validationData:self.sequencializer.randomTestingSequences,
             callbacks:{
                 onEpochEnd:function(epochs,log){
                     callback(epochs+1,log.loss);
@@ -38,6 +40,7 @@ function initialize(self,options){
    };
 
    let generate = async function(length,callback){
+       perf.start('generating text'); 
        let model = self.model;
        let indexes = (await self.sequencializer.dataset.batch(seqLength).map((t) => t.arraySync()).take(1).toArray())[0];
        let text = indexes.map((i) => self.sequencializer.decodeIndex(i)).join("");
@@ -51,10 +54,19 @@ function initialize(self,options){
                 xBuffer.set(1,0,i,indexes[i]);
             }
             let input = xBuffer.toTensor();
+
             /** tensor de probabilidades */
+            perf.start('predict text');
             let output = model.predict(input).squeeze();
+            console.log('predict text '+perf.stop('predict text').preciseWords);
+
+            perf.start('sample output');
             let index = sample(output,0.6);
+            console.log('sample output '+perf.stop('sample output').preciseWords);
+            
+            perf.start('decode character');
             let chr = sequencializer.decodeIndex(index);
+            console.log('decode character '+perf.stop('decode character').preciseWords);
             text += chr;
             if(callback){
                 callback(chr);
@@ -63,11 +75,14 @@ function initialize(self,options){
             indexes.push(index);
             count++;
        }while(count < length);
+       console.log('generating text '+perf.stop('generating text').preciseWords);
        return text;
    };
 
    let loadTextFile = function(filename){
+       perf.start('loading text file');
        self.sequencializer.loadTextFile(filename);
+       console.log('loading text file '+perf.stop('loading text file').preciseWords);
        return self;
    };
 

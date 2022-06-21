@@ -11,13 +11,47 @@ function Sequencializer(options){
     initialize(self,options);
 }
 
+function createSequencesDataset(dataset,seqLength,batchSize,encoderSize){
+    return dataset.batch(seqLength+1)
+        .filter(function(t){
+            return t.shape[0] === seqLength+1;
+        })
+        .map(function(t){
+            let arr = t.arraySync();
+            return [
+                arr.slice(0,arr.length-1),
+                arr.slice(1,arr.length)
+            ];
+        }).batch(batchSize).map(function(t,b){
+            let array = t.arraySync();
+            if(array.length < batchSize){
+                return null;
+            }
+            let xBuffer = tf.buffer([batchSize,seqLength,encoderSize]);
+            let yBuffer = tf.buffer([batchSize,encoderSize]);
+        
+            for(let i = 0; i < batchSize; i++) {
+                for(let j = 0; j < seqLength; j++) {
+                    xBuffer.set(1,i,j,array[i][0][j]);
+                }
+                yBuffer.set(1,i,array[i][1][seqLength-1]);
+            }
+            return {
+                xs:xBuffer.toTensor(),
+                ys:yBuffer.toTensor()
+            }
+        })
+        .filter(function(t){
+            return t !== null;
+        });
+}
+
 function initialize(self,options){
     options = options || {};
     let seqLength = options.seqLength || 128;
     let text = options.text || "";
     let encoder;
     let dataset = null;
-    let sequences = null;
     let batchSize = options.batchSize || 64;
     let type = options.type || 'vocab';
     
@@ -114,50 +148,44 @@ function initialize(self,options){
         }
     });
 
-    Object.defineProperty(self,'randomSequences',{
+    Object.defineProperty(self,'trainingDataset',{
         get:function(){
-            return self.sequences.shuffle(1024);
+            let size = self.dataset.size;
+            let half = Math.floor(size/2);
+            return self.dataset.take(half);
         }
     });
 
-    Object.defineProperty(self,'sequences',{
+
+    Object.defineProperty(self,'testingDataset',{
         get:function(){
-            if(sequences === null){
-                sequences = self.dataset
-                    .batch(seqLength+1)
-                    .filter(function(t){
-                        return t.shape[0] === seqLength+1;
-                    })
-                    .map(function(t){
-                        let arr = t.arraySync();
-                        return [
-                            arr.slice(0,arr.length-1),
-                            arr.slice(1,arr.length)
-                        ];
-                    }).batch(batchSize).map(function(t,b){
-                        let array = t.arraySync();
-                        if(array.length < batchSize){
-                            return null;
-                        }
-                        let xBuffer = tf.buffer([batchSize,seqLength,self.encoderSize]);
-                        let yBuffer = tf.buffer([batchSize,self.encoderSize]);
-                      
-                        for(let i = 0; i < batchSize; i++) {
-                            for(let j = 0; j < seqLength; j++) {
-                                xBuffer.set(1,i,j,array[i][0][j]);
-                            }
-                            yBuffer.set(1,i,array[i][1][seqLength-1]);
-                        }
-                        return {
-                            xs:xBuffer.toTensor(),
-                            ys:yBuffer.toTensor()
-                        }
-                    })
-                    .filter(function(t){
-                        return t !== null;
-                    });
-            }
-            return sequences;
+            let size = self.dataset.size;
+            let half = Math.floor(size/2);
+            return self.dataset.skip(half);
+        }
+    });
+
+    Object.defineProperty(self,'randomTrainingSequences',{
+        get:function(){
+            return self.trainingSequences.shuffle(1024);
+        }
+    });
+
+    Object.defineProperty(self,'randomTestingSequences',{
+        get:function(){
+            return self.testingSequences.shuffle(1024);
+        }
+    });
+
+    Object.defineProperty(self,'trainingSequences',{
+        get:function(){
+            return createSequencesDataset(self.trainingDataset,seqLength,batchSize,self.encoderSize);
+        }
+    });
+
+    Object.defineProperty(self,'testingSequences',{
+        get:function(){
+            return createSequencesDataset(self.testingDataset,seqLength,batchSize,self.encoderSize);
         }
     });
 
