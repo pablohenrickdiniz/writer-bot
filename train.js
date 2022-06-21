@@ -17,7 +17,8 @@ const outputFile = '/content/drive/MyDrive/ia-projects/writer-bot/output/biblia.
     if(!loaded){
         model.loadTextFile('./data/biblia.txt');
     }
-    
+    let result = await model.generate(1024);
+    fs.writeFileSync(outputFile,result);
     let epochs = 100;
     await model.train(epochs,async function(index,loss){
         await model.save(modelDir);
